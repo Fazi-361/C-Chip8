@@ -86,14 +86,6 @@ void loadRom(Chip8 *chip8, char *romPath) {
     fclose(rom);
 
     chip8->pc = chip8->memory + workRange.lo;
-
-    // for (int i = 0; i < MEMORY_SIZE; ++i) {
-    //     bool newLine = (i % 16 == 15);
-    //     printf("%02x ", chip8->memory[i]);
-    //     if (newLine) {
-    //         printf("\n");
-    //     }
-    // }
 }
 
 void emulateCycle(Chip8* chip8) {
@@ -136,7 +128,7 @@ void emulateCycle(Chip8* chip8) {
         case 0x6000: {
             // Set Register VX
 
-            // Operazione bitwise per prendere la seconda esadecimale piu' significativa dell'opcode
+            // Operazione bitwise per prendere la seconda cifra esadecimale piu' significativa dell'opcode
             ubyte_t vx = (opcode & 0x0F00) >> 8;
             unsigned short value = opcode & 0x00FF;
 
@@ -159,8 +151,8 @@ void emulateCycle(Chip8* chip8) {
         case 0xD000: {
             // 0xDXYN
             // Disegna uno sprite alle coordinate x, y con larghezza 8 e lunghezza N
-            unsigned short x = chip8->V[(opcode & 0x0F00) >> 8];
-            unsigned short y = chip8->V[(opcode & 0x00F0) >> 4];
+            unsigned short x = chip8->V[(opcode & 0x0F00) >> 8] % 64;
+            unsigned short y = chip8->V[(opcode & 0x00F0) >> 4] % 32;
             unsigned short height = opcode & 0x000F;
             unsigned short pixel;
             chip8->V[0xF]  = 0;

@@ -26,7 +26,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     // Inizializzazione Emulatore
     chip8 = newChip8();
-    loadRom(&chip8, "..\\tests\\1-chip8-logo.ch8");
+    loadRom(&chip8, argv[1]);
     for (int i=0; i<40; ++i) {
         fetch(&chip8);
     }
@@ -58,8 +58,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
             SDL_RenderPoint(renderer, x, y);
         }
+        SDL_RenderPresent(renderer);
     }
-    SDL_RenderPresent(renderer);
+
     return SDL_APP_CONTINUE;
 }
 
