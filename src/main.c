@@ -27,9 +27,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     // Inizializzazione Emulatore
     chip8 = newChip8();
     loadRom(&chip8, argv[1]);
-    for (int i=0; i<40; ++i) {
-        fetch(&chip8);
-    }
 
     return SDL_APP_CONTINUE;
 }

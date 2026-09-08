@@ -107,7 +107,7 @@ void emulateCycle(Chip8* chip8) {
                     chip8->pc+=2;
                     break;
                 }
-                case 0x000E: { // 0x00EE: Ritorna dalla subroutine
+                case 0x000E: { // 0x00EE: Ritorna dalla subroutine TODO
                     chip8->pc+=2;
                     break;
                 }
@@ -136,6 +136,16 @@ void emulateCycle(Chip8* chip8) {
             chip8->V[vx] = value;
 
             chip8->pc+=2;
+            break;
+        }
+
+        case 0x7000: {
+            // 7XNN: Add NN to VX
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            unsigned short nn = opcode & 0x00FF;
+            printf("Opcode %04x. Adding %d to register %x\n", opcode, nn, ((opcode & 0x0F00) >> 8));
+            *vx += nn;
+            chip8->pc += 2;
             break;
         }
 

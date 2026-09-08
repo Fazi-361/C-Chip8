@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 23)
 
 add_subdirectory(SDL EXCLUDE_FROM_ALL)
 
+add_compile_options(-Wall -Wextra -Wimplicit-fallthrough)
+
 add_executable(CHIP_8_Emulator
         src/main.c
         src/chip8.c
