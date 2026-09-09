@@ -1,9 +1,30 @@
 #include <stdio.h>
+#include <SDL3/SDL.h>
 #include "../include/chip8.h"
 
 range interpreterRange = {0x000, 0x1FF};
 range fontSetRange     = {0x050, 0x0A0};
 range workRange        = {0x200, 0xFFF};
+
+const SDL_Scancode keyMap[16] = {
+    SDL_SCANCODE_X, // 0
+    SDL_SCANCODE_1, // 1
+    SDL_SCANCODE_2, // 2
+    SDL_SCANCODE_3, // 3
+    SDL_SCANCODE_Q, // 4
+    SDL_SCANCODE_W, // 5
+    SDL_SCANCODE_E, // 6
+    SDL_SCANCODE_A, // 7
+    SDL_SCANCODE_S, // 8
+    SDL_SCANCODE_D, // 9
+    SDL_SCANCODE_Z, // A
+    SDL_SCANCODE_C, // B
+    SDL_SCANCODE_4, // C
+    SDL_SCANCODE_R, // D
+    SDL_SCANCODE_F, // E
+    SDL_SCANCODE_V  // F
+};
+
 
 ubyte_t font[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -24,6 +45,13 @@ ubyte_t font[] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+void printkeys(Chip8 *chip8) {
+    for (int i=0; i<16; ++i) {
+        if (chip8->keys[i])
+            printf("%0x  ", i);
+    }
+}
+
 Chip8 newChip8(void) {
     Chip8 chip8;
 
@@ -43,7 +71,7 @@ Chip8 newChip8(void) {
     for (size_t i = 0; i < sizeof(chip8.stack) / sizeof(chip8.stack[0]); ++i) {
         chip8.stack[i] = 0x0000;
     }
-    chip8.sp = nullptr;
+    chip8.sp = 0;
 
     // Inizializza i timer
     chip8.delay_timer = 0x00;
@@ -90,6 +118,9 @@ void loadRom(Chip8 *chip8, char *romPath) {
 
 void emulateCycle(Chip8* chip8) {
 
+    updateKeys(chip8, SDL_GetKeyboardState(NULL));
+    printkeys(chip8);
+
     chip8->drawFlag = false;
 
     // Fetch dell'opcode
@@ -107,8 +138,9 @@ void emulateCycle(Chip8* chip8) {
                     chip8->pc+=2;
                     break;
                 }
-                case 0x000E: { // 0x00EE: Ritorna dalla subroutine TODO
-                    chip8->pc+=2;
+                case 0x000E: { // 0x00EE: Ritorna dalla subroutine
+                    chip8->pc = chip8->stack[chip8->sp-- - 1];
+                    chip8->pc += 2;
                     break;
                 }
                 default: {
@@ -122,6 +154,49 @@ void emulateCycle(Chip8* chip8) {
             // Jump
             // Imposta il program counter alla parte dopo l'1
             chip8->pc = chip8->memory + (opcode & 0x0FFF);
+            break;
+        }
+
+        case 0x2000: {
+            // 2nnn - Chiama la subroutine in posizione NNN
+            unsigned short nnn = opcode & 0x0FFF;
+
+            chip8->stack[chip8->sp++] = chip8->pc;
+            chip8->pc = chip8->memory + nnn;
+
+            break;
+        }
+
+        case 0x3000: {
+            // 3XNN: salta il prossimo opcode se NN e' uguale a *VX
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            unsigned short nn = opcode & 0x00FF;
+            if (*vx == nn)
+                chip8->pc += 4;
+            else
+                chip8->pc += 2;
+            break;
+        }
+
+        case 0x4000: {
+            // 4XNN: salta il prossimo opcode se NN e' diverso da *VX
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            unsigned short nn = opcode & 0x00FF;
+            if (*vx != nn)
+                chip8->pc += 4;
+            else
+                chip8->pc += 2;
+            break;
+        }
+
+        case 0x5000: {
+            // 5XY0: salta il prossimo opcode se *VX e' uguale a *VY
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+            if (*vx == * vy)
+                chip8->pc += 4;
+            else
+                chip8->pc += 2;
             break;
         }
 
@@ -143,9 +218,131 @@ void emulateCycle(Chip8* chip8) {
             // 7XNN: Add NN to VX
             ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
             unsigned short nn = opcode & 0x00FF;
-            printf("Opcode %04x. Adding %d to register %x\n", opcode, nn, ((opcode & 0x0F00) >> 8));
+            // printf("Opcode %04x. Adding %d to register %x\n", opcode, nn, ((opcode & 0x0F00) >> 8));
             *vx += nn;
             chip8->pc += 2;
+            break;
+        }
+
+        case 0x8000: {
+            switch (opcode & 0x000F) {
+
+                case 0x0: {
+                    // 8XY0: VX = VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    *vx = *vy;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x1: {
+                    // 8XY1: VX = VX | VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    *vx |= *vy;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x2: {
+                    // 8XY2: VX = VX & VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    *vx &= *vy;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x3: {
+                    // 8XY3: VX = VX ^ VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    *vx ^= *vy;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x4: {
+                    // 8XY4: VX = VX + VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    chip8->V[0xF] = ((int)*vx + (int)*vy > 255);
+
+                    *vx += *vy;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x5: {
+                    // 8XY5: VX = VX - VY
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    chip8->V[0xF] = (*vx >= *vy);
+                    *vx -= *vy;
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x6: {
+                    // 8XY6: VX = VY >> 1
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    chip8->V[0xF] = *vy & 0x01;
+                    *vx = *vy >> 1;
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x7: {
+                    // 8XY7: VX = VY - VX
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    chip8->V[0xF] = (*vy >= *vx);
+                    *vx = *vy - *vx;
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0xE: {
+                    // 8XYE: VX = VY << 1
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+
+                    chip8->V[0xF] = (*vy & 0x80) != 0;
+                    *vx = *vy << 1;
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                default:
+                    printf("Opcode sconosciuto: 0x%04X\n", opcode);
+                    break;
+            }
+
+            break;
+        }
+
+        case 0x9000: {
+            // 9XY0: salta il prossimo opcode se *VX e' diverso da *VY
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            ubyte_t *vy = &chip8->V[(opcode & 0x00F0) >> 4];
+            if (*vx != * vy)
+                chip8->pc += 4;
+            else
+                chip8->pc += 2;
             break;
         }
 
@@ -183,13 +380,141 @@ void emulateCycle(Chip8* chip8) {
             break;
         }
 
+        case 0xE000: {
+            switch (opcode & 0x00FF) {
+                case 0x009E: {
+                    // EX9E: Salta la prossima istruzione se il tasto in VX e' premuto
+                    ubyte_t vx = (opcode & 0x0F00) >> 8;
+                    if (chip8->keys[vx])
+                        chip8->pc += 2; // Salta l' istruzione successiva
+
+                    chip8 -> pc += 2;
+                    break;
+                }
+
+                case 0x00A1: {
+                    // EX9E: Salta la prossima istruzione se il tasto in VX NON e' premuto
+                    ubyte_t vx = (opcode & 0x0F00) >> 8;
+                    if (!chip8->keys[vx])
+                        chip8->pc += 2; // Salta l' istruzione successiva
+
+                    chip8 -> pc += 2;
+                    break;
+                }
+
+                default: {
+                    printf("Opcode sconsociuto: 0x%X\n", opcode);
+                }
+            }
+            break;
+        }
+
+        case 0xF000: {
+            switch (opcode & 0x00FF) {
+
+                case 0x0007: {
+                    // FX07 sets VX to the current value of the delay timer
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    *vx = chip8->delay_timer;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x000A: {
+                    // A key press is awaited, and then stored in VX
+                    // (blocking operation, all instruction halted until next key event,
+                    // delay and sound timers should continue processing).
+
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+
+                    for (int i = 0; i < 16; ++i) {
+                        if (chip8->keys[i] && !chip8->prevKeys[i]) {
+                            *vx = i;
+                            chip8->pc += 2;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+                case 0x0015: {
+                    // FX15 sets the delay timer to the value in VX
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+
+                    chip8 -> delay_timer = *vx;
+                    chip8->pc += 2;
+
+                    break;
+                }
+
+                case 0x0018: {
+                    //FX18 sets the sound timer to the value in VX
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+
+                    chip8 -> sound_timer = *vx;
+                    chip8->pc += 2;
+
+                    break;
+                }
+
+                case 0x001E: {
+                    // FX1E: Aggiungi il valore di VX a I
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+
+                    chip8->V[0xF] = (*vx + chip8->I > 0xFFF); // Controlla il carry
+                    chip8->I += *vx;
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x0033: {
+                    // Fx33 - store binary-coded decimal representation of vX to memory at i, i + 1 and i + 2
+                    chip8->memory[chip8->I]     = chip8->V[(opcode & 0x0F00) >> 8] / 100;
+                    chip8->memory[chip8->I + 1] = (chip8->V[(opcode & 0x0F00) >> 8] / 10) % 10;
+                    chip8->memory[chip8->I + 2] = (chip8->V[(opcode & 0x0F00) >> 8] % 100) % 10;
+                    chip8->pc += 2;
+                    break;
+                }
+
+                case 0x0055: {
+                    // FX5E: save registers v0 - vX to memory starting at i
+                    ubyte_t vx = (opcode & 0x0F00) >> 8;
+
+                    for (int i = 0; i <= vx; ++i) {
+                        chip8->memory[chip8->I + i] = chip8->V[i];
+                    }
+
+                    chip8->pc += 2;
+                    break;
+                }
+                case 0x0065: {
+                    // FX5E: load registers v0 - vX to memory starting at i
+                    ubyte_t vx = (opcode & 0x0F00) >> 8;
+
+                    for (int i = 0; i <= vx; ++i) {
+                        chip8->V[i] = chip8->memory[chip8->I + i];
+                    }
+
+                    chip8->pc += 2;
+                    break;
+                }
+
+                default:{
+                    printf("Opcode sconsociuto: 0x%X\n", opcode);
+                    break;
+                }
+            }
+
+            break;
+        }
+
         default: {
             printf("Opcode sconsociuto: 0x%X\n", opcode);
         }
 
     }
 
-    // Execute
 }
 
 void fetch(Chip8 *chip8) {
@@ -200,8 +525,6 @@ void fetch(Chip8 *chip8) {
 
     // Aggiorna l'opcode
     chip8->opcode = *chip8->pc << 8 | *(chip8->pc + 1);
-
-    // printf("%04x ", chip8->opcode);
 }
 
 void clearGraphics(Chip8 *chip8) {
@@ -209,4 +532,21 @@ void clearGraphics(Chip8 *chip8) {
         chip8->gfx[0]); ++i) {
         chip8->gfx[i] = 0;
     }
+}
+
+void updateKeys(Chip8 *chip8, const bool *keysPressed) {
+
+    for (int i = 0; i < 16; ++i)
+        chip8->prevKeys[i] = chip8->keys[i];
+
+    for (int i = 0; i < 16; i++) {
+        chip8->keys[i] = keysPressed[keyMap[i]];
+    }
+}
+
+void tickTimers(Chip8 *chip8) {
+    if (chip8->delay_timer > 0)
+        chip8->delay_timer -= 1;
+    if (chip8->sound_timer > 0)
+        chip8->sound_timer -= 1;
 }

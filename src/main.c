@@ -39,8 +39,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, const SDL_Event *event)
     return SDL_APP_CONTINUE;
 }
 
+unsigned int lastTime = 0, currentTime;
+
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+
+    currentTime = SDL_GetTicks();
+
+    if (currentTime - lastTime > 1000 / 60)
+        tickTimers(&chip8);
+
     emulateCycle(&chip8);
 
     if (chip8.drawFlag) {
