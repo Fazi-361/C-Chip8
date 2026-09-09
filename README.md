@@ -1,6 +1,6 @@
 # C-Chip8 - Chip-8 Emulator
 
-Un emulatore **Chip-8** scritto in C puro, costruito con **SDL3** per il rendering grafico, audio e input.
+Un emulatore **Chip-8** scritto in C, costruito con **SDL3** per il rendering grafico, audio e input.
 
 > **Nota**: Questo progetto è in fase di sviluppo (WIP).
 
