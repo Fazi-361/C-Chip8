@@ -47,6 +47,8 @@ typedef struct {
     // Flag usata per controllare se bisogna disegnare a schermo
     bool drawFlag;
     bool audioFlag;
+    bool crashFlag;
+
 
 } Chip8;
 

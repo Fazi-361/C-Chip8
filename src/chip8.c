@@ -98,6 +98,7 @@ Chip8 newChip8(void) {
     // Inizializza la draw flag
     chip8.drawFlag = false;
     chip8.audioFlag = false;
+    chip8.crashFlag = false;
 
     return chip8;
 }
@@ -145,15 +146,17 @@ void emulateCycle(Chip8* chip8) {
                     break;
                 }
                 default: {
-                    printf("Opcode sconosciuto: [0x0000]: 0x%X\n", opcode);
+                    // 0NNN. Non necessario.
+                    chip8->pc += 2;
+                    break;
                 }
             }
             break;
         }
 
         case 0x1000: {
-            // Jump
-            // Imposta il program counter alla parte dopo l'1
+            // 1NNN
+            // Imposta il program counter a NNN
             chip8->pc = chip8->memory + (opcode & 0x0FFF);
             break;
         }
@@ -356,6 +359,13 @@ void emulateCycle(Chip8* chip8) {
             break;
         }
 
+        case 0xB000: {
+            // BNNN: Imposta il PC a NNN + *V0
+            unsigned short nnn = opcode & 0x0FFF;
+            chip8->pc = chip8->memory + nnn + chip8->V[0];
+            break;
+        }
+
         case 0xC000: {
             // CXNN
             // Genera un numero casuale, Fa l'operazione & con NN e mette il risultato in VX
@@ -398,6 +408,7 @@ void emulateCycle(Chip8* chip8) {
                 case 0x009E: {
                     // EX9E: Salta la prossima istruzione se il tasto in VX e' premuto
                     ubyte_t vx = (opcode & 0x0F00) >> 8;
+                    vx &= 0x000F;
                     if (chip8->keys[chip8->V[vx]])
                         chip8->pc += 2; // Salta l' istruzione successiva
 
@@ -408,6 +419,7 @@ void emulateCycle(Chip8* chip8) {
                 case 0x00A1: {
                     // EX9E: Salta la prossima istruzione se il tasto in VX NON e' premuto
                     ubyte_t vx = (opcode & 0x0F00) >> 8;
+                    vx &= 0x000F;
                     if (!chip8->keys[chip8->V[vx]])
                         chip8->pc += 2; // Salta l' istruzione successiva
 
@@ -485,8 +497,10 @@ void emulateCycle(Chip8* chip8) {
                     // FX29: Il registro I viene impostato all'indirizzo del carattere esadecimale puntato da VX.
                     // Per il font.
                     ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
-                    chip8->I = chip8->memory[*vx * 5];
-                    printf("Put I in position %d\n", (*vx * 5));
+                    *vx &= 0x000F;
+                    chip8->I = *vx * 5 ;
+                    // printf("VX: %d.  ", *vx);
+                    // printf("Put I in position %d\n", chip8->I);
                     chip8->pc += 2;
                     break;
                 }

@@ -51,6 +51,10 @@ unsigned int lastTickTime = 0, lastTimerTime = 0, currentTime;
 SDL_AppResult SDL_AppIterate(void *appstate) {
     currentTime = SDL_GetTicks();
 
+    if (chip8.crashFlag) {
+        return SDL_APP_FAILURE;
+    }
+
     // Tickiamo i timer
     if (currentTime - lastTimerTime > 1000 / 60){
         tickTimers(&chip8);
