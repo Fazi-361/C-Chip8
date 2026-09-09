@@ -31,5 +31,5 @@ cmake --build .\
 ```
 ## Avvio 
 ```bash
-.\C-Chip8 path\to\rom.ch8 
+./C-Chip8  path\to\rom.ch8 
 ```
