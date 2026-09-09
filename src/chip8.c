@@ -45,9 +45,9 @@ ubyte_t font[] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-void printkeys(Chip8 *chip8) {
+void printReleasedKeys(Chip8 const *chip8) {
     for (int i=0; i<16; ++i) {
-        if (chip8->keys[i])
+        if (chip8->keys[i] && ! chip8->prevKeys[i])
             printf("%0x  ", i);
     }
 }
@@ -97,6 +97,7 @@ Chip8 newChip8(void) {
 
     // Inizializza la draw flag
     chip8.drawFlag = false;
+    chip8.audioFlag = false;
 
     return chip8;
 }
@@ -119,7 +120,7 @@ void loadRom(Chip8 *chip8, char *romPath) {
 void emulateCycle(Chip8* chip8) {
 
     updateKeys(chip8, SDL_GetKeyboardState(NULL));
-    printkeys(chip8);
+    printReleasedKeys(chip8);
 
     chip8->drawFlag = false;
 
@@ -355,6 +356,18 @@ void emulateCycle(Chip8* chip8) {
             break;
         }
 
+        case 0xC000: {
+            // CXNN
+            // Genera un numero casuale, Fa l'operazione & con NN e mette il risultato in VX
+            ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+            ubyte_t nn = opcode & 0x00FF;
+            ubyte_t random = rand() % 0x00FF;
+
+            *vx = nn & random;
+            chip8->pc += 2;
+            break;
+        }
+
         case 0xD000: {
             // 0xDXYN
             // Disegna uno sprite alle coordinate x, y con larghezza 8 e lunghezza N
@@ -385,7 +398,7 @@ void emulateCycle(Chip8* chip8) {
                 case 0x009E: {
                     // EX9E: Salta la prossima istruzione se il tasto in VX e' premuto
                     ubyte_t vx = (opcode & 0x0F00) >> 8;
-                    if (chip8->keys[vx])
+                    if (chip8->keys[chip8->V[vx]])
                         chip8->pc += 2; // Salta l' istruzione successiva
 
                     chip8 -> pc += 2;
@@ -395,7 +408,7 @@ void emulateCycle(Chip8* chip8) {
                 case 0x00A1: {
                     // EX9E: Salta la prossima istruzione se il tasto in VX NON e' premuto
                     ubyte_t vx = (opcode & 0x0F00) >> 8;
-                    if (!chip8->keys[vx])
+                    if (!chip8->keys[chip8->V[vx]])
                         chip8->pc += 2; // Salta l' istruzione successiva
 
                     chip8 -> pc += 2;
@@ -468,6 +481,16 @@ void emulateCycle(Chip8* chip8) {
                     break;
                 }
 
+                case 0x0029: {
+                    // FX29: Il registro I viene impostato all'indirizzo del carattere esadecimale puntato da VX.
+                    // Per il font.
+                    ubyte_t *vx = &chip8->V[(opcode & 0x0F00) >> 8];
+                    chip8->I = chip8->memory[*vx * 5];
+                    printf("Put I in position %d\n", (*vx * 5));
+                    chip8->pc += 2;
+                    break;
+                }
+
                 case 0x0033: {
                     // Fx33 - store binary-coded decimal representation of vX to memory at i, i + 1 and i + 2
                     chip8->memory[chip8->I]     = chip8->V[(opcode & 0x0F00) >> 8] / 100;
@@ -528,8 +551,7 @@ void fetch(Chip8 *chip8) {
 }
 
 void clearGraphics(Chip8 *chip8) {
-    for (int i = 0; i < sizeof(chip8->gfx) / sizeof(
-        chip8->gfx[0]); ++i) {
+    for (int i = 0; i < (int) sizeof(chip8->gfx) / (int) sizeof(chip8->gfx[0]); ++i) {
         chip8->gfx[i] = 0;
     }
 }
