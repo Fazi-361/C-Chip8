@@ -111,6 +111,16 @@ void loadRom(Chip8 *chip8, char *romPath) {
         return;
     }
 
+    fseek(rom, 0, SEEK_END);
+    long fileSize = ftell(rom);
+    rewind(rom);
+
+    if (fileSize > MEMORY_SIZE - workRange.lo) {
+        printf("Errore: ROM troppo grande (%ld byte)\n", fileSize);
+        fclose(rom);
+        return;
+    }
+
     ubyte_t *workRangePtr = chip8->memory + workRange.lo;
     fread(workRangePtr, 1, workRange.hi - workRange.lo, rom);
     fclose(rom);
@@ -555,8 +565,12 @@ void emulateCycle(Chip8* chip8) {
 }
 
 void fetch(Chip8 *chip8) {
-    if (chip8->pc + 1 == NULL) {
-        perror("End Of File!");
+    // Controlla se siamo alla fine del file
+    ubyte_t *memory_end = chip8->memory + MEMORY_SIZE;
+    if (chip8->pc < chip8->memory || chip8->pc + 1 >= memory_end) {
+        printf("Errore: Program Counter (0x%tX) fuori dai limiti della memoria\n",
+                chip8->pc - chip8->memory);
+        chip8->crashFlag = true;
         return;
     }
 

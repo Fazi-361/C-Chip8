@@ -17,15 +17,21 @@ static Chip8 chip8;
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
+    if (argc < 2) {
+        puts("Per avviare l'emulatore, fornire il percorso ad una rom.");
+        puts("Uso: ./C-Chip8 path/per/la/rom.ch8");
+        return SDL_APP_FAILURE;
+    }
+
     srand(time(NULL));
-    SDL_SetAppMetadata("Chip-8", "1.0", "Chip-8");
+    SDL_SetAppMetadata("C-Chip8", "1.0", "C-Chip8");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("Chip-8", 640, 480, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("C-Chip8", 640, 480, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }

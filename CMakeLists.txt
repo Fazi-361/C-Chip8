@@ -7,20 +7,20 @@ add_subdirectory(SDL EXCLUDE_FROM_ALL)
 
 add_compile_options(-Wall -Wextra -Wimplicit-fallthrough)
 
-add_executable(CHIP_8_Emulator
+add_executable(C-Chip8
         src/main.c
         src/chip8.c
         include/chip8.h
 )
 
-target_link_libraries(CHIP_8_Emulator PRIVATE SDL3::SDL3)
+target_link_libraries(C-Chip8 PRIVATE SDL3::SDL3)
 
 if(WIN32)
     add_custom_command(
-            TARGET CHIP_8_Emulator POST_BUILD
+            TARGET C-Chip8 POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy
             $<TARGET_FILE:SDL3::SDL3-shared>
-            $<TARGET_FILE_DIR:CHIP_8_Emulator>
+            $<TARGET_FILE_DIR:C-Chip8>
             VERBATIM
     )
 endif()
