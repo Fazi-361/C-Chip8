@@ -108,6 +108,7 @@ void loadRom(Chip8 *chip8, char *romPath) {
     if (!rom) {
         printf("Errore: Impossibile aprire la ROM %s\n", romPath);
         perror("Error");
+        chip8->crashFlag = true;
         return;
     }
 
@@ -597,6 +598,11 @@ void updateKeys(Chip8 *chip8, const bool *keysPressed) {
 void tickTimers(Chip8 *chip8) {
     if (chip8->delay_timer > 0)
         chip8->delay_timer -= 1;
-    if (chip8->sound_timer > 0)
+    if (chip8->sound_timer > 0) {
         chip8->sound_timer -= 1;
+        chip8->audioFlag = true;
+    }
+    else {
+        chip8->audioFlag = false;
+    }
 }
