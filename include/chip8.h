@@ -49,6 +49,7 @@ typedef struct {
     bool audioFlag;
     bool crashFlag;
 
+    bool romLoaded;
 
 } Chip8;
 

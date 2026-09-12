@@ -11,6 +11,8 @@ add_executable(C-Chip8
         src/main.c
         src/chip8.c
         include/chip8.h
+        src/mainutils.c
+        include/mainutils.h
 )
 
 target_link_libraries(C-Chip8 PRIVATE SDL3::SDL3)

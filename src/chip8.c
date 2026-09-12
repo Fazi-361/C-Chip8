@@ -100,6 +100,8 @@ Chip8 newChip8(void) {
     chip8.audioFlag = false;
     chip8.crashFlag = false;
 
+    chip8.romLoaded = false;
+
     return chip8;
 }
 
@@ -127,6 +129,7 @@ void loadRom(Chip8 *chip8, char *romPath) {
     fclose(rom);
 
     chip8->pc = chip8->memory + workRange.lo;
+    chip8->romLoaded = true;
 }
 
 void emulateCycle(Chip8* chip8) {
